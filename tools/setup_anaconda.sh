@@ -11,12 +11,12 @@ unamem="$(uname -m)"
 is_windows=false
 
 if [[ ${unames} =~ Linux ]]; then
-    script="Miniconda3-latest-Linux-${unamem}.sh"
+    script="Miniforge3-Linux-${unamem}.sh"
 elif [[ ${unames} =~ Darwin ]]; then
-    script="Miniconda3-latest-MacOSX-${unamem}.sh"
+    script="Miniforge3-MacOSX-${unamem}.sh"
 elif [[ ${unames} =~ MINGW || ${unames} =~ CYGWIN || ${unames} =~ MSYS ]]; then
     is_windows=true
-    script="Miniconda3-latest-Windows-${unamem}.exe"
+    script="Miniforge3-Windows-${unamem}.exe"
 else
     echo "Error: not supported platform: ${unames}"
     exit 1
@@ -51,10 +51,10 @@ fi
 if [ ! -e "${output_dir}/etc/profile.d/conda.sh" ]; then
     if [ ! -e "${script}" ]; then
         # https://docs.conda.io/en/latest/miniconda.html
-        wget --tries=3 "https://repo.anaconda.com/miniconda/${script}"
+        wget --tries=3 "https://github.com/conda-forge/miniforge/releases/latest/download/${script}"
     fi
     if "${is_windows}"; then
-        echo "Error: Miniconda installation is not supported for Windows for now."
+        echo "Error: Miniforge installation is not supported for Windows for now."
         exit 1
         # https://conda.io/projects/conda/en/latest/user-guide/install/windows.html#installing-in-silent-mode
         # shellcheck disable=SC2317
