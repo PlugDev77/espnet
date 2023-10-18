@@ -72,6 +72,8 @@ from espnet2.utils.types import (
 from espnet2.utils.yaml_no_alias_safe_dump import yaml_no_alias_safe_dump
 from espnet.utils.cli_utils import get_commandline_args
 
+import nova
+
 try:
     import wandb
 except Exception:
@@ -175,10 +177,27 @@ class IteratorOptions:
     batch_type: str
     max_cache_size: float
     max_cache_fd: int
+    allow_multi_rates: bool
     distributed: bool
     num_batches: Optional[int]
     num_iters_per_epoch: Optional[int]
     train: bool
+
+def bind_model(model):
+    def save(state, path, *args, **kwargs):
+        torch.save(state, path)
+        print('[Nova] Model saved')
+
+    def load(path, *args, **kwargs):
+        state = torch.load(path)
+        model.load_state_dict(state['model'])
+        print('[Nova] Model loaded')
+
+    # 추론
+    def infer(path, **kwargs):
+        return inference(path, model)
+
+    nova.bind(save=save, load=load, infer=infer)  # 'nova.bind' function must be called at the end.
 
 
 class AbsTask(ABC):
@@ -869,6 +888,12 @@ class AbsTask(ABC):
             "This feature is only valid when data type is 'kaldi_ark'.",
         )
         group.add_argument(
+            "--allow_multi_rates",
+            type=str2bool,
+            default=False,
+            help="Whether to allow audios to have different sampling rates",
+        )
+        group.add_argument(
             "--valid_max_cache_size",
             type=humanfriendly_parse_size_or_none,
             default=None,
@@ -1423,6 +1448,8 @@ class AbsTask(ABC):
                 distributed_option=distributed_option,
             )
 
+            bind_model(model)
+
             if args.use_wandb and wandb.run:
                 wandb.finish()
 
@@ -1443,6 +1470,7 @@ class AbsTask(ABC):
             batch_type = args.batch_type
             max_cache_size = args.max_cache_size
             max_cache_fd = args.max_cache_fd
+            allow_multi_rates = args.allow_multi_rates
             distributed = distributed_option.distributed
             num_batches = None
             num_iters_per_epoch = args.num_iters_per_epoch
@@ -1472,6 +1500,7 @@ class AbsTask(ABC):
             else:
                 max_cache_size = args.valid_max_cache_size
             max_cache_fd = args.max_cache_fd
+            allow_multi_rates = args.allow_multi_rates
             distributed = distributed_option.distributed
             num_batches = None
             num_iters_per_epoch = None
@@ -1487,6 +1516,7 @@ class AbsTask(ABC):
             batch_bins = 0
             num_batches = args.num_att_plot
             max_cache_fd = args.max_cache_fd
+            allow_multi_rates = args.allow_multi_rates
             # num_att_plot should be a few sample ~ 3, so cache all data.
             max_cache_size = np.inf if args.max_cache_size != 0.0 else 0.0
             # always False because plot_attention performs on RANK0
@@ -1507,6 +1537,7 @@ class AbsTask(ABC):
             num_batches=num_batches,
             max_cache_size=max_cache_size,
             max_cache_fd=max_cache_fd,
+            allow_multi_rates=allow_multi_rates,
             distributed=distributed,
             num_iters_per_epoch=num_iters_per_epoch,
             train=train,
@@ -1596,6 +1627,7 @@ class AbsTask(ABC):
             preprocess=iter_options.preprocess_fn,
             max_cache_size=iter_options.max_cache_size,
             max_cache_fd=iter_options.max_cache_fd,
+            allow_multi_rates=iter_options.allow_multi_rates,
         )
         cls.check_task_requirements(
             dataset, args.allow_variable_data_keys, train=iter_options.train
@@ -1677,6 +1709,7 @@ class AbsTask(ABC):
             preprocess=iter_options.preprocess_fn,
             max_cache_size=iter_options.max_cache_size,
             max_cache_fd=iter_options.max_cache_fd,
+            allow_multi_rates=iter_options.allow_multi_rates,
         )
         cls.check_task_requirements(
             dataset, args.allow_variable_data_keys, train=iter_options.train
@@ -1763,6 +1796,7 @@ class AbsTask(ABC):
             preprocess=iter_options.preprocess_fn,
             max_cache_size=iter_options.max_cache_size,
             max_cache_fd=iter_options.max_cache_fd,
+            allow_multi_rates=iter_options.allow_multi_rates,
         )
         cls.check_task_requirements(
             dataset, args.allow_variable_data_keys, train=iter_options.train
