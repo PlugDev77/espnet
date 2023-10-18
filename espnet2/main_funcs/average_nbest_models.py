@@ -8,6 +8,8 @@ from typeguard import check_argument_types
 
 from espnet2.train.reporter import Reporter
 
+import nova
+
 
 @torch.no_grad()
 def average_nbest_models(
@@ -99,7 +101,8 @@ def average_nbest_models(
                         avg[k] = avg[k] / n
 
                 # 2.b. Save the ave model and create a symlink
-                torch.save(avg, op)
+                #torch.save(avg, op)
+                nova.save(avg, op)
 
         # 3. *.*.ave.pth is a symlink to the max ave model
         op = output_dir / f"{ph}.{cr}.ave_{max(_nbests)}best.{suffix}pth"
